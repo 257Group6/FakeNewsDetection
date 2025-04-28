@@ -1,4 +1,4 @@
-# 📰 NewsCheck: Fake News Detector
+# 📰 NewsCheck - Fake News Detector
 
 #### by CMPE 257 Group 6
 
