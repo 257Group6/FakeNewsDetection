@@ -5,6 +5,8 @@ import ssl
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import nltk
+from newspaper import Article
+from urllib.parse import urlparse
 
 # Download NLTK data (you might need to handle SSL issues here)
 try:
@@ -33,6 +35,17 @@ def load_vectorizer():
     return vectorizer
 
 
+def extract_article_text(url):
+    try:
+        article = Article(url)
+        article.download()
+        article.parse()
+        return article.text
+    except Exception as e:
+        st.error(f"Error extracting article: {str(e)}")
+        return None
+
+
 # Preprocess text function (same as in your notebook)
 def preprocess_text(text):
     lemmatizer = WordNetLemmatizer()
@@ -51,7 +64,7 @@ def main():
     st.markdown(
         """
     This app uses machine learning to detect whether a news article is likely to be real or fake.
-    Enter the text of a news article below to check its authenticity.
+    Enter the URL of a news article below to check its authenticity.
     """
     )
 
@@ -59,40 +72,58 @@ def main():
     model = load_model()
     vectorizer = load_vectorizer()
 
-    # Text input
-    text_input = st.text_area("Enter news article text:", height=200)
+    # URL input
+    url_input = st.text_input("Enter news article URL:")
 
     if st.button("Check News"):
-        if text_input:
-            with st.spinner("Analyzing..."):
-                # Preprocess the text
-                processed_text = preprocess_text(text_input)
+        if url_input:
+            # Validate URL
+            try:
+                result = urlparse(url_input)
+                if not all([result.scheme, result.netloc]):
+                    st.error("Please enter a valid URL")
+                    return
+            except:
+                st.error("Please enter a valid URL")
+                return
 
-                # Vectorize
-                text_vector = vectorizer.transform([processed_text])
+            with st.spinner("Extracting and analyzing article..."):
+                # Extract article text
+                article_text = extract_article_text(url_input)
 
-                # Predict
-                prediction = model.predict(text_vector)[0]
-                probability = model.predict_proba(text_vector)[0][prediction]
+                if article_text:
+                    # Preprocess the text
+                    processed_text = preprocess_text(article_text)
 
-                # Display results
-                st.markdown("---")
-                st.subheader("Results")
+                    # Vectorize
+                    text_vector = vectorizer.transform([processed_text])
 
-                if prediction == 1:
-                    st.success(
-                        f"✅ This appears to be REAL NEWS (Confidence: {probability:.2%})"
-                    )
-                else:
-                    st.error(
-                        f"❌ This appears to be FAKE NEWS (Confidence: {probability:.2%})"
-                    )
+                    # Predict
+                    prediction = model.predict(text_vector)[0]
+                    probability = model.predict_proba(text_vector)[0][prediction]
 
-                # Show confidence meter
-                st.progress(probability)
-                st.caption(f"Confidence: {probability:.2%}")
+                    # Display results
+                    st.markdown("---")
+                    st.subheader("Results")
+
+                    if prediction == 1:
+                        st.success(
+                            f"✅ This appears to be REAL NEWS (Confidence: {probability:.2%})"
+                        )
+                    else:
+                        st.error(
+                            f"❌ This appears to be FAKE NEWS (Confidence: {probability:.2%})"
+                        )
+
+                    # Show confidence meter
+                    st.progress(probability)
+                    st.caption(f"Confidence: {probability:.2%}")
+
+                    # Display extracted text
+                    with st.expander("View extracted article text"):
+                        st.text(article_text)
         else:
-            st.warning("Please enter some text to analyze.")
+            st.warning("Please enter a URL to analyze.")
 
 
 if __name__ == "__main__":
