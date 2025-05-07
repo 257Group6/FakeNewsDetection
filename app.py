@@ -23,7 +23,7 @@ nltk.download("wordnet")
 # Load the model and vectorizer
 @st.cache_resource
 def load_model():
-    with open("models/logistic_regression_model.pkl", "rb") as f:
+    with open("models/best_model.pkl", "rb") as f:
         model = pickle.load(f)
     return model
 
