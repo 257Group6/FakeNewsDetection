@@ -47,8 +47,12 @@ def load_vectorizer():
         return None
 
 @st.cache_resource
-def load_tokenizer():
-    tokenizer_path = "models/Liar/BiLSTM_Liar_tokenizer.pkl"
+def load_tokenizer(model_type):
+    if model_type == "LSTM":
+        tokenizer_path = "models/Liar/LSTM_Liar_tokenizer.pkl"
+    else:  # BiLSTM
+        tokenizer_path = "models/Liar/BiLSTM_Liar_tokenizer.pkl"
+    
     try:
         with open(tokenizer_path, "rb") as f:
             tokenizer = pickle.load(f)
@@ -82,14 +86,20 @@ def analyze_text(text, model, model_type, vectorizer=None, tokenizer=None):
     # Preprocess the text
     processed_text = preprocess_text(text)
 
-    if model_type == "BiLSTM":
-        # Process and predict using BiLSTM
+    if model_type in ["LSTM", "BiLSTM"]:
+        if tokenizer is None:
+            st.error("Tokenizer is required for LSTM/BiLSTM models")
+            return None, None
+        # Process and predict using LSTM/BiLSTM
         sequence = tokenizer.texts_to_sequences([processed_text])
         padded_sequence = pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
         raw_prediction = float(model.predict(padded_sequence)[0][0])
         prediction = 1 if raw_prediction > 0.5 else 0
         probability = raw_prediction if prediction == 1 else 1 - raw_prediction
     else:
+        if vectorizer is None:
+            st.error("Vectorizer is required for traditional ML models")
+            return None, None
         # Vectorize and predict using other models
         text_vector = vectorizer.transform([processed_text])
         prediction = model.predict(text_vector)[0]
@@ -110,7 +120,7 @@ def main():
     # Model selection
     model_type = st.selectbox(
         "Select Model",
-        ["LogisticRegression", "RandomForest", "GradientBoosting", "NaiveBayes", "BiLSTM"],
+        ["LogisticRegression", "RandomForest", "GradientBoosting", "NaiveBayes", "LSTM", "BiLSTM"],
         help="Choose between different models for fake news detection"
     )
 
@@ -120,8 +130,8 @@ def main():
         st.error("Failed to load model. Please try a different model.")
         return
 
-    if model_type == "BiLSTM":
-        tokenizer = load_tokenizer()
+    if model_type in ["LSTM", "BiLSTM"]:
+        tokenizer = load_tokenizer(model_type)
         if tokenizer is None:
             st.error("Failed to load tokenizer. Please try a different model.")
             return
@@ -166,9 +176,12 @@ def main():
                             article_text, 
                             model, 
                             model_type, 
-                            vectorizer if model_type != "BiLSTM" else None,
-                            tokenizer if model_type == "BiLSTM" else None
+                            vectorizer,
+                            tokenizer
                         )
+
+                        if prediction is None or probability is None:
+                            return
 
                         # Display results
                         st.markdown("---")
@@ -204,9 +217,12 @@ def main():
                         text_input, 
                         model, 
                         model_type, 
-                        vectorizer if model_type != "BiLSTM" else None,
-                        tokenizer if model_type == "BiLSTM" else None
+                        vectorizer,
+                        tokenizer
                     )
+
+                    if prediction is None or probability is None:
+                        return
 
                     # Display results
                     st.markdown("---")
