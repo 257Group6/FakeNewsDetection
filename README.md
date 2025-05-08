@@ -3,9 +3,9 @@
 #### by CMPE 257 Group 6
 
 We use the publicly available dataset:  
-https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset/data
+- https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset/data
 
-https://www.kaggle.com/datasets/khandalaryan/liar-preprocessed-dataset/data
+- https://www.kaggle.com/datasets/khandalaryan/liar-preprocessed-dataset/data
 
 ### How to Run the Project
 
@@ -23,15 +23,15 @@ pip install -r requirements.txt
 ```
 Then run the files below using Jupyter notebook
 
-FakeNewsDetection_ISOT.ipynb
+- FakeNewsDetection_ISOT.ipynb
 
-FakeNewsDetection_Liar.ipynb
+- FakeNewsDetection_Liar.ipynb
 
-BiLSTM_ISOT.ipynb
+- BiLSTM_ISOT.ipynb
 
-BiLSTM_Liar.ipynb
+- BiLSTM_Liar.ipynb
 
-LSTM_Liar.ipynb
+- LSTM_Liar.ipynb
 
 
 ### Contributors
