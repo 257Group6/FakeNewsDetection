@@ -27,21 +27,35 @@ MAX_SEQUENCE_LENGTH = 200
 @st.cache_resource
 def load_model(model_name):
     model_path = f"models/Liar/{model_name}_Liar_model.pkl"
-    with open(model_path, "rb") as f:
-        model = pickle.load(f)
-    return model
+    try:
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        return model
+    except FileNotFoundError:
+        st.error(f"Model file not found: {model_path}")
+        return None
 
 @st.cache_resource
 def load_vectorizer():
-    with open("models/Liar/Tfidf_Liar_vectorizer.pkl", "rb") as f:
-        vectorizer = pickle.load(f)
-    return vectorizer
+    vectorizer_path = "models/Liar/Tfidf_Liar_vectorizer.pkl"
+    try:
+        with open(vectorizer_path, "rb") as f:
+            vectorizer = pickle.load(f)
+        return vectorizer
+    except FileNotFoundError:
+        st.error(f"Vectorizer file not found: {vectorizer_path}")
+        return None
 
 @st.cache_resource
 def load_tokenizer():
-    with open("models/Liar/BiLSTM_Liar_tokenizer.pkl", "rb") as f:
-        tokenizer = pickle.load(f)
-    return tokenizer
+    tokenizer_path = "models/Liar/BiLSTM_Liar_tokenizer.pkl"
+    try:
+        with open(tokenizer_path, "rb") as f:
+            tokenizer = pickle.load(f)
+        return tokenizer
+    except FileNotFoundError:
+        st.error(f"Tokenizer file not found: {tokenizer_path}")
+        return None
 
 def extract_article_text(url):
     try:
@@ -102,11 +116,21 @@ def main():
 
     # Load appropriate model and preprocessing components
     model = load_model(model_type)
+    if model is None:
+        st.error("Failed to load model. Please try a different model.")
+        return
+
     if model_type == "BiLSTM":
         tokenizer = load_tokenizer()
+        if tokenizer is None:
+            st.error("Failed to load tokenizer. Please try a different model.")
+            return
         vectorizer = None
     else:
         vectorizer = load_vectorizer()
+        if vectorizer is None:
+            st.error("Failed to load vectorizer. Please try a different model.")
+            return
         tokenizer = None
 
     # Input method selection
@@ -142,7 +166,7 @@ def main():
                             article_text, 
                             model, 
                             model_type, 
-                            vectorizer if model_type == "BiLSTM" else None,
+                            vectorizer if model_type != "BiLSTM" else None,
                             tokenizer if model_type == "BiLSTM" else None
                         )
 
@@ -180,7 +204,7 @@ def main():
                         text_input, 
                         model, 
                         model_type, 
-                        vectorizer if model_type == "BiLSTM" else None,
+                        vectorizer if model_type != "BiLSTM" else None,
                         tokenizer if model_type == "BiLSTM" else None
                     )
 
