@@ -7,6 +7,7 @@ from nltk.stem import WordNetLemmatizer
 import nltk
 from newspaper import Article
 from urllib.parse import urlparse
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 # Download NLTK data (you might need to handle SSL issues here)
 try:
@@ -19,14 +20,21 @@ else:
 nltk.download("stopwords")
 nltk.download("wordnet")
 
+# Constants
+MAX_SEQUENCE_LENGTH = 200
 
-# Load the model and vectorizer
+# Load the models and vectorizer
 @st.cache_resource
-def load_model():
+def load_logistic_model():
     with open("models/best_model.pkl", "rb") as f:
         model = pickle.load(f)
     return model
 
+@st.cache_resource
+def load_bilstm_model():
+    with open("models/bilstm_model.pkl", "rb") as f:
+        model = pickle.load(f)
+    return model
 
 @st.cache_resource
 def load_vectorizer():
@@ -34,6 +42,11 @@ def load_vectorizer():
         vectorizer = pickle.load(f)
     return vectorizer
 
+@st.cache_resource
+def load_tokenizer():
+    with open("models/bilstm_tokenizer.pkl", "rb") as f:
+        tokenizer = pickle.load(f)
+    return tokenizer
 
 def extract_article_text(url):
     try:
@@ -44,7 +57,6 @@ def extract_article_text(url):
     except Exception as e:
         st.error(f"Error extracting article: {str(e)}")
         return None
-
 
 # Preprocess text function (same as in your notebook)
 def preprocess_text(text):
@@ -57,6 +69,24 @@ def preprocess_text(text):
     ]
     return " ".join(words)
 
+def analyze_text(text, model, model_type, vectorizer=None, tokenizer=None):
+    # Preprocess the text
+    processed_text = preprocess_text(text)
+
+    if model_type == "Logistic Regression":
+        # Vectorize and predict using Logistic Regression
+        text_vector = vectorizer.transform([processed_text])
+        prediction = model.predict(text_vector)[0]
+        probability = float(model.predict_proba(text_vector)[0][prediction])
+    else:
+        # Process and predict using BiLSTM
+        sequence = tokenizer.texts_to_sequences([processed_text])
+        padded_sequence = pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
+        raw_prediction = float(model.predict(padded_sequence)[0][0])
+        prediction = 1 if raw_prediction > 0.5 else 0
+        probability = raw_prediction if prediction == 1 else 1 - raw_prediction
+
+    return prediction, probability
 
 # Main app
 def main():
@@ -64,43 +94,99 @@ def main():
     st.markdown(
         """
     This app uses machine learning to detect whether a news article is likely to be real or fake.
-    Enter the URL of a news article below to check its authenticity.
+    Choose your input method below and enter the text or URL to check its authenticity.
     """
     )
 
-    # Load model and vectorizer
-    model = load_model()
-    vectorizer = load_vectorizer()
+    # Model selection
+    model_type = st.selectbox(
+        "Select Model",
+        ["Logistic Regression", "BiLSTM"],
+        help="Choose between Logistic Regression (faster) or BiLSTM (more accurate) model"
+    )
 
-    # URL input
-    url_input = st.text_input("Enter news article URL:")
+    # Load appropriate model and preprocessing components
+    if model_type == "Logistic Regression":
+        model = load_logistic_model()
+        vectorizer = load_vectorizer()
+    else:  # BiLSTM
+        model = load_bilstm_model()
+        tokenizer = load_tokenizer()
 
-    if st.button("Check News"):
-        if url_input:
-            # Validate URL
-            try:
-                result = urlparse(url_input)
-                if not all([result.scheme, result.netloc]):
+    # Input method selection
+    input_method = st.radio(
+        "Choose input method:",
+        ["Enter URL", "Enter Text"],
+        horizontal=True
+    )
+
+    if input_method == "Enter URL":
+        # URL input
+        url_input = st.text_input("Enter news article URL:")
+        
+        if st.button("Check News"):
+            if url_input:
+                # Validate URL
+                try:
+                    result = urlparse(url_input)
+                    if not all([result.scheme, result.netloc]):
+                        st.error("Please enter a valid URL")
+                        return
+                except:
                     st.error("Please enter a valid URL")
                     return
-            except:
-                st.error("Please enter a valid URL")
-                return
 
-            with st.spinner("Extracting and analyzing article..."):
-                # Extract article text
-                article_text = extract_article_text(url_input)
+                with st.spinner("Extracting and analyzing article..."):
+                    # Extract article text
+                    article_text = extract_article_text(url_input)
 
-                if article_text:
-                    # Preprocess the text
-                    processed_text = preprocess_text(article_text)
+                    if article_text:
+                        # Analyze the text
+                        prediction, probability = analyze_text(
+                            article_text, 
+                            model, 
+                            model_type, 
+                            vectorizer if model_type == "Logistic Regression" else None,
+                            tokenizer if model_type == "BiLSTM" else None
+                        )
 
-                    # Vectorize
-                    text_vector = vectorizer.transform([processed_text])
+                        # Display results
+                        st.markdown("---")
+                        st.subheader("Results")
 
-                    # Predict
-                    prediction = model.predict(text_vector)[0]
-                    probability = model.predict_proba(text_vector)[0][prediction]
+                        if prediction == 1:
+                            st.success(
+                                f"✅ This appears to be REAL NEWS (Confidence: {probability:.2%})"
+                            )
+                        else:
+                            st.error(
+                                f"❌ This appears to be FAKE NEWS (Confidence: {probability:.2%})"
+                            )
+
+                        # Show confidence meter
+                        st.progress(float(probability))
+                        st.caption(f"Confidence: {probability:.2%}")
+
+                        # Display extracted text
+                        with st.expander("View extracted article text"):
+                            st.text(article_text)
+            else:
+                st.warning("Please enter a URL to analyze.")
+    else:
+        # Direct text input
+        text_input = st.text_area("Enter news article text:", height=200)
+        
+        if st.button("Analyze Text"):
+            if text_input:
+                with st.spinner("Analyzing text..."):
+                    # Analyze the text
+                    prediction, probability = analyze_text(
+                        text_input, 
+                        model, 
+                        model_type, 
+                        vectorizer if model_type == "Logistic Regression" else None,
+                        tokenizer if model_type == "BiLSTM" else None
+                    )
 
                     # Display results
                     st.markdown("---")
@@ -116,15 +202,10 @@ def main():
                         )
 
                     # Show confidence meter
-                    st.progress(probability)
+                    st.progress(float(probability))
                     st.caption(f"Confidence: {probability:.2%}")
-
-                    # Display extracted text
-                    with st.expander("View extracted article text"):
-                        st.text(article_text)
-        else:
-            st.warning("Please enter a URL to analyze.")
-
+            else:
+                st.warning("Please enter some text to analyze.")
 
 if __name__ == "__main__":
     main()

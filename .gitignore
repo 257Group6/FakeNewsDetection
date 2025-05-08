@@ -7,3 +7,5 @@ __pycache__
 *.pyw
 *.pyz
 *.pywz
+.DS_Store
+# bilstm*
