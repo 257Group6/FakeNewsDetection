@@ -19,11 +19,15 @@ else:
 nltk.download("stopwords")
 nltk.download("wordnet")
 
+MODELS = {
+    "best_model.pkl": "models/best_model.pkl",
+    "logistic_regression_model.pkl": "models/logistic_regression_model.pkl",
+}
 
 # Load the model and vectorizer
 @st.cache_resource
-def load_model():
-    with open("models/best_model.pkl", "rb") as f:
+def load_model(model_name):
+    with open(MODELS[model_name], "rb") as f:
         model = pickle.load(f)
     return model
 
@@ -69,7 +73,10 @@ def main():
     )
 
     # Load model and vectorizer
-    model = load_model()
+    model_name = st.selectbox(
+        "Choose a model:", list(MODELS.keys()), index=0
+    )
+    model = load_model(model_name)
     vectorizer = load_vectorizer()
 
     # URL input
