@@ -25,26 +25,21 @@ MAX_SEQUENCE_LENGTH = 200
 
 # Load the models and vectorizer
 @st.cache_resource
-def load_logistic_model():
-    with open("models/best_model.pkl", "rb") as f:
-        model = pickle.load(f)
-    return model
-
-@st.cache_resource
-def load_bilstm_model():
-    with open("models/bilstm_model.pkl", "rb") as f:
+def load_model(model_name):
+    model_path = f"models/Liar/{model_name}_Liar_model.pkl"
+    with open(model_path, "rb") as f:
         model = pickle.load(f)
     return model
 
 @st.cache_resource
 def load_vectorizer():
-    with open("models/tfidf_vectorizer.pkl", "rb") as f:
+    with open("models/Liar/Tfidf_Liar_vectorizer.pkl", "rb") as f:
         vectorizer = pickle.load(f)
     return vectorizer
 
 @st.cache_resource
 def load_tokenizer():
-    with open("models/bilstm_tokenizer.pkl", "rb") as f:
+    with open("models/Liar/BiLSTM_Liar_tokenizer.pkl", "rb") as f:
         tokenizer = pickle.load(f)
     return tokenizer
 
@@ -73,18 +68,18 @@ def analyze_text(text, model, model_type, vectorizer=None, tokenizer=None):
     # Preprocess the text
     processed_text = preprocess_text(text)
 
-    if model_type == "Logistic Regression":
-        # Vectorize and predict using Logistic Regression
-        text_vector = vectorizer.transform([processed_text])
-        prediction = model.predict(text_vector)[0]
-        probability = float(model.predict_proba(text_vector)[0][prediction])
-    else:
+    if model_type == "BiLSTM":
         # Process and predict using BiLSTM
         sequence = tokenizer.texts_to_sequences([processed_text])
         padded_sequence = pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH, padding='post', truncating='post')
         raw_prediction = float(model.predict(padded_sequence)[0][0])
         prediction = 1 if raw_prediction > 0.5 else 0
         probability = raw_prediction if prediction == 1 else 1 - raw_prediction
+    else:
+        # Vectorize and predict using other models
+        text_vector = vectorizer.transform([processed_text])
+        prediction = model.predict(text_vector)[0]
+        probability = float(model.predict_proba(text_vector)[0][prediction])
 
     return prediction, probability
 
@@ -101,17 +96,18 @@ def main():
     # Model selection
     model_type = st.selectbox(
         "Select Model",
-        ["Logistic Regression", "BiLSTM"],
-        help="Choose between Logistic Regression (faster) or BiLSTM (more accurate) model"
+        ["LogisticRegression", "RandomForest", "GradientBoosting", "NaiveBayes", "BiLSTM"],
+        help="Choose between different models for fake news detection"
     )
 
     # Load appropriate model and preprocessing components
-    if model_type == "Logistic Regression":
-        model = load_logistic_model()
-        vectorizer = load_vectorizer()
-    else:  # BiLSTM
-        model = load_bilstm_model()
+    model = load_model(model_type)
+    if model_type == "BiLSTM":
         tokenizer = load_tokenizer()
+        vectorizer = None
+    else:
+        vectorizer = load_vectorizer()
+        tokenizer = None
 
     # Input method selection
     input_method = st.radio(
@@ -146,7 +142,7 @@ def main():
                             article_text, 
                             model, 
                             model_type, 
-                            vectorizer if model_type == "Logistic Regression" else None,
+                            vectorizer if model_type == "BiLSTM" else None,
                             tokenizer if model_type == "BiLSTM" else None
                         )
 
@@ -184,7 +180,7 @@ def main():
                         text_input, 
                         model, 
                         model_type, 
-                        vectorizer if model_type == "Logistic Regression" else None,
+                        vectorizer if model_type == "BiLSTM" else None,
                         tokenizer if model_type == "BiLSTM" else None
                     )
 
