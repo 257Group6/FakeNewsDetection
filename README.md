@@ -1,6 +1,6 @@
 # 📰 NewsCheck - Fake News Detector
 
-#### by CMPE 257 Group 6
+### by CMPE 257 Group 6
 
 We use the publicly available dataset:  
 - https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset/data
@@ -13,7 +13,6 @@ We use the publicly available dataset:
 
 ```bash
 git clone https://github.com/257Group6/FakeNewsDetection.git
-cd FakeNewsDetection/
 ```
 
 #### 2. Install Dependencies
@@ -21,13 +20,18 @@ cd FakeNewsDetection/
 ```bash
 pip install -r requirements.txt
 ```
-Then run the files below using Jupyter notebook
 
-- FakeNewsDetection_ISOT.ipynb
+#### 3. Run the Streamlit Frontend Locally
+
+```
+streamlit run app.py
+```
+
+#### 4. Load or Update Existing Models
+
+If the `.pkl` model files do not exist or you want to update the models, run the following files below using Jupyter notebook.
 
 - FakeNewsDetection_Liar.ipynb
-
-- BiLSTM_ISOT.ipynb
 
 - BiLSTM_Liar.ipynb
 
